@@ -233,14 +233,6 @@ def create_ui() -> gr.Blocks:
                     interactive=False,
                     placeholder="Upload images and click 'Create Video' to start..."
                 )
-                
-                # Export button
-                export_btn = gr.Button(
-                    "💾 Export Video",
-                    variant="secondary",
-                    size="lg",
-                    interactive=False
-                )
         
         # Video preview
         video_output = gr.Video(
@@ -292,7 +284,7 @@ def create_ui() -> gr.Blocks:
         
         def on_create(image_paths, duration, zoom_in, zoom_out, fade_in, fade_out):
             if not image_paths:
-                return None, "❌ Please upload at least one image.", None, gr.Button(interactive=False)
+                return None, "❌ Please upload at least one image.", None
             
             # Build list of selected transitions
             selected_transitions = []
@@ -306,7 +298,7 @@ def create_ui() -> gr.Blocks:
                 selected_transitions.append("fade_out")
             
             if not selected_transitions:
-                return None, "❌ Please select at least one transition.", None, gr.Button(interactive=False)
+                return None, "❌ Please select at least one transition.", None
             
             # Create temporary file objects for the reordered images
             from types import SimpleNamespace
@@ -315,14 +307,8 @@ def create_ui() -> gr.Blocks:
             video_path, status = builder.process_and_create_video(reordered_files, duration, selected_transitions)
             # Enable export button after successful video creation
             if video_path:
-                return video_path, status, video_path, gr.Button(interactive=True)
-            return None, status, None, gr.Button(interactive=False)
-        
-        def on_export():
-            video_path = builder.export_video()
-            if video_path:
-                return gr.File(value=video_path, visible=True)
-            return gr.File(visible=False)
+                return video_path, status, video_path
+            return None, status, None
         
         # Connect upload to gallery
         file_upload.upload(
@@ -360,12 +346,7 @@ def create_ui() -> gr.Blocks:
                 transition_fade_in, 
                 transition_fade_out
             ],
-            outputs=[video_output, status_output, download_file, export_btn]
-        )
-        
-        export_btn.click(
-            fn=on_export,
-            outputs=[download_file]
+            outputs=[video_output, status_output, download_file]
         )
         
         # Cleanup on app close
