@@ -159,6 +159,30 @@ def create_ui() -> gr.Blocks:
                     file_types=[".jpg", ".jpeg", ".png"],
                     type="filepath"
                 )
+
+                # Image list for reordering
+                gr.Markdown("### 🔄 Image Order")
+                gr.Markdown("*Use buttons to reorder. The video will use this order.*")
+                
+                # Hidden state to store image order
+                image_order_state = gr.State(value=[])
+                
+                with gr.Row():
+                    image_list = gr.Dataframe(
+                        headers=["#", "Filename"],
+                        datatype=["number", "str"],
+                        col_count=(2, "fixed"),
+                        interactive=False,
+                        label="Current Order",
+                        row_count=(1, "dynamic")
+                    )
+                
+                # Hidden state to track selected row
+                selected_row = gr.State(value=0)
+                
+                with gr.Row():
+                    move_up_btn = gr.Button("⬆️ Move Up", size="sm")
+                    move_down_btn = gr.Button("⬇️ Move Down", size="sm")
                 
                 # Duration slider
                 duration_slider = gr.Slider(
@@ -232,9 +256,74 @@ def create_ui() -> gr.Blocks:
         )
         
         # Event handlers
-        def on_create(files, duration, zoom_in, zoom_out, fade_in, fade_out):
+
+        def on_upload(files):
+            """Handle file upload and display images in list."""
+            if not files:
+                return gr.update(value=[]), [], 0
+            # Create dataframe with index and filename
+            data = [[i+1, Path(f.name).name] for i, f in enumerate(files)]
+            # Explicitly update dataframe, state, and select first row
+            return gr.update(value=data), data, 0
+        
+        def move_up(current_state, selected_idx):
+            """Move selected image up in the list."""
+            if not current_state or len(current_state) == 0:
+                return gr.update(), current_state, selected_idx
+            
+            list_data = [row[:] for row in current_state]
+            idx = selected_idx
+            
+            if idx < 1 or idx >= len(list_data):
+                return gr.update(), current_state, selected_idx
+            
+            # Swap with previous item
+            list_data[idx], list_data[idx-1] = list_data[idx-1], list_data[idx]
+            
+            # Update indices
+            for i, row in enumerate(list_data):
+                row[0] = i + 1
+            
+            # Update selected row to follow the moved item
+            new_selected = idx - 1
+            return gr.update(value=list_data), list_data, new_selected
+        
+        
+        def move_down(current_state, selected_idx):
+            """Move selected image down in the list."""
+            if not current_state or len(current_state) == 0:
+                return gr.update(), current_state, selected_idx
+            
+            list_data = [row[:] for row in current_state]
+            idx = selected_idx
+            
+            if idx < 0 or idx >= len(list_data) - 1:
+                return gr.update(), current_state, selected_idx
+            
+            # Swap with next item
+            list_data[idx], list_data[idx+1] = list_data[idx+1], list_data[idx]
+            
+            # Update indices
+            for i, row in enumerate(list_data):
+                row[0] = i + 1
+            
+            # Update selected row to follow the moved item
+            new_selected = idx + 1
+            return gr.update(value=list_data), list_data, new_selected
+        
+        def on_create(files, image_order_state, duration, zoom_in, zoom_out, fade_in, fade_out):
             if not files:
                 return None, "❌ Please upload at least one image.", None, gr.Button(interactive=False)
+            
+            # Use reordered list from state if available, otherwise use upload order
+            if image_order_state and len(image_order_state) > 0:
+                # Get filenames from the state in current order
+                ordered_filenames = [row[1] for row in image_order_state]
+                # Match filenames to original file paths
+                file_dict = {Path(f.name).name: f.name for f in files}
+                image_paths = [file_dict[fname] for fname in ordered_filenames if fname in file_dict]
+            else:
+                image_paths = [file.name for file in files]
             
             # Build list of selected transitions
             selected_transitions = []
@@ -250,7 +339,11 @@ def create_ui() -> gr.Blocks:
             if not selected_transitions:
                 return None, "❌ Please select at least one transition.", None, gr.Button(interactive=False)
             
-            video_path, status = builder.process_and_create_video(files, duration, selected_transitions)
+            # Create temporary file objects for the reordered images
+            from types import SimpleNamespace
+            reordered_files = [SimpleNamespace(name=path) for path in image_paths]
+            
+            video_path, status = builder.process_and_create_video(reordered_files, duration, selected_transitions)
             # Enable export button after successful video creation
             if video_path:
                 return video_path, status, video_path, gr.Button(interactive=True)
@@ -262,10 +355,40 @@ def create_ui() -> gr.Blocks:
                 return gr.File(value=video_path, visible=True)
             return gr.File(visible=False)
         
+        # Connect upload to list
+        file_upload.upload(
+            fn=on_upload,
+            inputs=[file_upload],
+            outputs=[image_list, image_order_state, selected_row]
+        )
+        
+        # Update selected row when clicking on dataframe
+        def on_select(evt: gr.SelectData):
+            return evt.index[0] if evt.index else 0
+        
+        image_list.select(
+            fn=on_select,
+            outputs=[selected_row]
+        )
+        
+        # Connect move buttons
+        move_up_btn.click(
+            fn=move_up,
+            inputs=[image_order_state, selected_row],
+            outputs=[image_list, image_order_state, selected_row]
+        )
+        
+        move_down_btn.click(
+            fn=move_down,
+            inputs=[image_order_state, selected_row],
+            outputs=[image_list, image_order_state, selected_row]
+        )
+        
         create_btn.click(
             fn=on_create,
             inputs=[
-                file_upload, 
+                file_upload,
+                image_order_state,
                 duration_slider, 
                 transition_zoom_in, 
                 transition_zoom_out, 
@@ -291,7 +414,7 @@ def main():
     app = create_ui()
     app.launch(
         server_name="0.0.0.0",
-        server_port=7860,
+        server_port=7861,
         share=False,
         show_error=True
     )

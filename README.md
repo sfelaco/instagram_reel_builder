@@ -6,8 +6,10 @@ Create stunning Instagram reels from your photos with automatic 9:16 cropping an
 
 - ✨ **Automatic 9:16 Cropping**: Images are automatically cropped to Instagram's vertical format
 - 🎬 **Smooth Transitions**: Includes zoom in, zoom out, fade in, and fade out effects
-- 📐 **HD Quality**: Output videos are 1080px height (608x1080 resolution)
+- 📐 **Full HD Quality**: Output videos are 1920px height (1080x1920 resolution)
 - 🖼️ **Batch Processing**: Upload up to 30 images at once
+- 🔄 **Easy Reordering**: Reorder images with up/down buttons after upload
+- 🎭 **Custom Transitions**: Select which transitions to use in your video
 - ⏱️ **Customizable Duration**: Set how long each photo appears (1-10 seconds)
 - 🎨 **Modern UI**: Easy-to-use Gradio interface
 - 💾 **Easy Export**: Download your video with one click
@@ -57,16 +59,26 @@ python src/main.py
 
 3. **Upload images**:
    - Click "Upload Images" and select up to 30 JPEG or PNG files
-   - Images will be processed in the order you upload them
+   - Images will appear in the gallery below
 
-4. **Set duration**:
+4. **Reorder images** (optional):
+   - Select an image number in the "Select Image # to Move" field
+   - Click "⬆️ Move Up" to move it up in the list
+   - Click "⬇️ Move Down" to move it down in the list
+   - The video will use the order shown in the list
+
+5. **Select transitions**:
+   - Choose which transition effects to use (Zoom In, Zoom Out, Fade In, Fade Out)
+   - All transitions are selected by default
+
+6. **Set duration**:
    - Use the slider to set how long each photo appears (default: 4 seconds)
 
-5. **Create video**:
+7. **Create video**:
    - Click "Create Video" button
    - Wait for processing (progress bar will show status)
 
-6. **Export**:
+8. **Export**:
    - Preview the video in the interface
    - Click "Export Video" to download the MP4 file
 
@@ -75,8 +87,9 @@ python src/main.py
 ### Image Processing
 - Images are cropped to 9:16 aspect ratio (centered)
 - Original height is maintained during cropping
-- Final resolution: 608x1080 pixels
+- Final resolution: 1080x1920 pixels (Full HD)
 - Supports JPEG and PNG formats
+- Button-based reordering (Move Up/Down)
 
 ### Video Creation
 - Format: MP4 (H.264 codec)
