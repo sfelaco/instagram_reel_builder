@@ -1,4 +1,4 @@
-# 📱 Instagram Reel Builder
+# 📱 **Instagram Reel Builder**
 
 Create stunning Instagram reels from your photos with automatic 9:16 cropping and smooth transitions!
 
