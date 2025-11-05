@@ -1,0 +1,3 @@
+@echo off
+echo Starting Instagram Reel Builder...
+poetry run python src/main.py
