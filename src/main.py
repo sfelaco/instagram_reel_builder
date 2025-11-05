@@ -6,7 +6,6 @@ import tempfile
 import shutil
 from typing import List, Optional, Tuple
 import time
-
 from image_processor import ImageProcessor
 from video_builder import VideoBuilder
 
@@ -160,18 +159,31 @@ def create_ui() -> gr.Blocks:
                     type="filepath"
                 )
 
-                # Image reordering with drag & drop
-                gr.Markdown("### 🔄 Reorder Images (Drag & Drop)")
-                gr.Markdown("*Drag and drop files to reorder. The video will use this order.*")
+                # Image reordering with preview
+                gr.Markdown("### 🔄 Reorder Images")
+                gr.Markdown("*Click an image to select it, then use the arrow buttons below to move it.*")
                 
-                image_order = gr.File(
+                image_gallery = gr.Gallery(
                     label="Image Order",
-                    file_count="multiple",
-                    file_types=[".jpg", ".jpeg", ".png"],
-                    type="filepath",
-                    interactive=True,
-                    allow_reordering=True
+                    columns=5,
+                    rows=2,
+                    height="auto",
+                    object_fit="contain",
+                    show_label=False,
+                    allow_preview=False
                 )
+                
+                # Hidden state to store file paths and selected index
+                image_paths_state = gr.State(value=[])
+                selected_idx_state = gr.State(value=None)
+                
+                with gr.Row():
+                    with gr.Column(scale=1):
+                        gr.Markdown("**Selected:** None", elem_id="selected_info")
+                    with gr.Column(scale=2):
+                        with gr.Row():
+                            move_left_btn = gr.Button("⬅️ Move Left", size="sm", variant="primary")
+                            move_right_btn = gr.Button("➡️ Move Right", size="sm", variant="primary")
                 
                 # Duration slider
                 duration_slider = gr.Slider(
@@ -247,18 +259,40 @@ def create_ui() -> gr.Blocks:
         # Event handlers
 
         def on_upload(files):
-            """Handle file upload and populate reorderable file list."""
+            """Handle file upload and display in gallery."""
             if not files:
-                return None
-            # Return files to the reorderable component
-            return files
+                return None, [], None
+            # Store file paths and display in gallery
+            paths = [f.name for f in files]
+            return paths, paths, None
         
-        def on_create(ordered_files, duration, zoom_in, zoom_out, fade_in, fade_out):
-            if not ordered_files:
-                return None, "❌ Please upload at least one image.", None, gr.Button(interactive=False)
+        def on_gallery_select(evt: gr.SelectData):
+            """Track which image is selected."""
+            return evt.index
+        
+        def move_left(paths, selected_idx):
+            """Move selected image to the left."""
+            if not paths or selected_idx is None or selected_idx <= 0:
+                return paths, paths, selected_idx
             
-            # Use the files in the order they appear in the reorderable component
-            image_paths = [file.name for file in ordered_files]
+            paths_copy = paths[:]
+            paths_copy[selected_idx], paths_copy[selected_idx-1] = paths_copy[selected_idx-1], paths_copy[selected_idx]
+            new_idx = selected_idx - 1
+            return paths_copy, paths_copy, new_idx
+        
+        def move_right(paths, selected_idx):
+            """Move selected image to the right."""
+            if not paths or selected_idx is None or selected_idx >= len(paths) - 1:
+                return paths, paths, selected_idx
+            
+            paths_copy = paths[:]
+            paths_copy[selected_idx], paths_copy[selected_idx+1] = paths_copy[selected_idx+1], paths_copy[selected_idx]
+            new_idx = selected_idx + 1
+            return paths_copy, paths_copy, new_idx
+        
+        def on_create(image_paths, duration, zoom_in, zoom_out, fade_in, fade_out):
+            if not image_paths:
+                return None, "❌ Please upload at least one image.", None, gr.Button(interactive=False)
             
             # Build list of selected transitions
             selected_transitions = []
@@ -290,17 +324,36 @@ def create_ui() -> gr.Blocks:
                 return gr.File(value=video_path, visible=True)
             return gr.File(visible=False)
         
-        # Connect upload to reorderable file list
+        # Connect upload to gallery
         file_upload.upload(
             fn=on_upload,
             inputs=[file_upload],
-            outputs=[image_order]
+            outputs=[image_gallery, image_paths_state, selected_idx_state]
+        )
+        
+        # Track gallery selection
+        image_gallery.select(
+            fn=on_gallery_select,
+            outputs=[selected_idx_state]
+        )
+        
+        # Connect reorder buttons
+        move_left_btn.click(
+            fn=move_left,
+            inputs=[image_paths_state, selected_idx_state],
+            outputs=[image_gallery, image_paths_state, selected_idx_state]
+        )
+        
+        move_right_btn.click(
+            fn=move_right,
+            inputs=[image_paths_state, selected_idx_state],
+            outputs=[image_gallery, image_paths_state, selected_idx_state]
         )
         
         create_btn.click(
             fn=on_create,
             inputs=[
-                image_order,
+                image_paths_state,
                 duration_slider, 
                 transition_zoom_in, 
                 transition_zoom_out, 
